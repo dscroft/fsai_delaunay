@@ -40,6 +40,13 @@ def get_gates( coords ):
         if a[2] != b[2] and a[2] in ( BLUE, YELLOW ) and b[2] in ( BLUE, YELLOW ):
             yield a, b
 
+def size_filter( gates, min_size=2.0, max_size=5.0 ):
+    min_size, max_size = min_size**2, max_size**2
+    for a, b in gates:
+        size = (a[0]-b[0])**2 + (a[1]-b[1])**2
+        if size >= min_size and size <= max_size:
+            yield a, b
+
 def to_point( coord ) -> geometry_msgs.msg.Point:
     p = geometry_msgs.msg.Point()
     p.x, p.y, p.z = coord[0], coord[1], 0.0
@@ -57,10 +64,10 @@ class DelaunayNode(Node):
             visualization_msgs.msg.MarkerArray, 'rviz', 10 )
         
         self.__pub = self.create_publisher(
-            geometry_msgs.msg.PoseArray, 'gates', 10 )
+            geometry_msgs.msg.PoseArray, 'centers', 10 )
 
     def __cones_callback(self, msg):
-        self.get_logger().info( "Callback" )
+        self.get_logger().debug( "Cones callback" )
 
         cones = np.array( [ list(p) for p in pc2.read_points(msg, field_names=("x", "y", "rgba"), skip_nans=True) ] )
 
@@ -73,18 +80,18 @@ class DelaunayNode(Node):
         coords = list( to_coords( cones, edges ) )
         
         # extract gates from the coords        
-        gates = list( get_gates( coords ) )
+        gates = list( size_filter( get_gates( coords ) ) )
 
         self.__publish_gates( msg.header, gates )
 
-        self.__publish_viz( msg.header, coords, "edges", [1.0,0.0,0.0] )
-        self.__publish_viz( msg.header, gates, "gates", [0.0,1.0,0.0] )
+        self.__publish_viz( msg.header, coords, "edges", [1.0,0.0,0.0], scale=0.05 )
+        self.__publish_viz( msg.header, gates, "gates", [0.0,1.0,0.0], scale=0.1 )
 
     def __publish_gates( self, header, gates ):
         self.get_logger().debug( "Publish gates" )
 
         if self.__pub.get_subscription_count() == 0:
-            self.get.logger().debug( "No subscribers" )
+            self.get_logger().debug( "No subscribers" )
             return
 
         msg = geometry_msgs.msg.PoseArray()
@@ -113,16 +120,15 @@ class DelaunayNode(Node):
             pose.orientation.z = np.sin( angle/2 )
             pose.orientation.w = np.cos( angle/2 )
 
-
             msg.poses.append( pose )
 
         self.__pub.publish( msg )
 
-    def __publish_viz( self, header, coords, ns, color ):
+    def __publish_viz( self, header, coords, ns, color, scale=0.1 ):
         self.get_logger().debug( "Publish visuals" )
 
         if self.__vizPub.get_subscription_count() == 0:
-            self.get.logger().debug( "No subscribers" )
+            self.get_logger().debug( "No subscribers" )
             return
 
         msg = visualization_msgs.msg.MarkerArray()
@@ -141,7 +147,7 @@ class DelaunayNode(Node):
         msg.markers[1].id = 1
         msg.markers[1].type = visualization_msgs.msg.Marker.LINE_LIST
         msg.markers[1].action = visualization_msgs.msg.Marker.ADD
-        msg.markers[1].scale.x = 0.1
+        msg.markers[1].scale.x = scale
         msg.markers[1].color.r, msg.markers[1].color.g, msg.markers[1].color.b = color
         msg.markers[1].color.a = 1.0
 

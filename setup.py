@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'delaunay = fsai_delaunay.delaunay:main'
+            'delaunay = fsai_delaunay.delaunay:main',
+            'simple_path = fsai_delaunay.simple_path:main',
+            'breadcrumbs = fsai_delaunay.breadcrumbs:main'
         ],
     },
 )
